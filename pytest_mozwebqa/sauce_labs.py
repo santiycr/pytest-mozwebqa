@@ -6,6 +6,7 @@
 
 import httplib
 import json
+import hmac
 
 import ConfigParser
 import pytest
@@ -92,14 +93,20 @@ class Job(object):
         self.session_id = session_id
 
     @property
+    def auth(self):
+        return hmac.new("%(username)s:%(api-key)s" % self.credentials,
+                        self.session_id).hexdigest()
+
+    @property
     def url(self):
-        return 'http://saucelabs.com/jobs/%s' % self.session_id
+        return 'http://saucelabs.com/jobs/%s?auth=%s' % (self.session_id,
+                                                         self.auth)
 
     @property
     def video_html(self):
         flash_vars = 'config={\
             "clip":{\
-                "url":"http%%3A//saucelabs.com/jobs/%(session_id)s/video.flv",\
+                "url":"http%%3A//saucelabs.com/jobs/%(session_id)s/video.flv?auth=%(auth)s",\
                 "provider":"streamer",\
                 "autoPlay":false,\
                 "autoBuffering":true},\
@@ -112,10 +119,11 @@ class Job(object):
                     "backgroundColor":"rgba(0, 0, 0, 0.7)"}},\
             "playerId":"player%(session_id)s",\
             "playlist":[{\
-                "url":"http%%3A//saucelabs.com/jobs/%(session_id)s/video.flv",\
+                "url":"http%%3A//saucelabs.com/jobs/%(session_id)s/video.flv?auth=%(auth)s",\
                 "provider":"streamer",\
                 "autoPlay":false,\
-                "autoBuffering":true}]}' % {'session_id': self.session_id}
+                "autoBuffering":true}]}' % {'session_id': self.session_id,
+                                            'auth': self.auth}
 
         return html.div(html.object(
             html.param(value='true', name='allowfullscreen'),
